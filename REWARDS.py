@@ -1,0 +1,2 @@
+wallet = "x"
+print(wallet)
