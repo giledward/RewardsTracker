@@ -13,12 +13,15 @@ import {
 
 const BONK_MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
 
+type DataClass = "Confirmed" | "Estimated" | "Projected";
+
 type DemoSnapshot = {
   name: string;
   description: string;
   lockedBonk: number;
   confirmedRewards: number;
   rewardsPerHour: number;
+  lastConfirmedLabel: string;
 };
 
 const demoProfiles: DemoSnapshot[] = [
@@ -27,21 +30,24 @@ const demoProfiles: DemoSnapshot[] = [
     description: "Small wallet test profile",
     lockedBonk: 25_000_000,
     confirmedRewards: 7_850,
-    rewardsPerHour: 155
+    rewardsPerHour: 155,
+    lastConfirmedLabel: "Demo snapshot 14m ago"
   },
   {
     name: "Empire mode",
     description: "275M locked BONK style profile",
     lockedBonk: 275_000_000,
     confirmedRewards: 84_231,
-    rewardsPerHour: 1_342
+    rewardsPerHour: 1_342,
+    lastConfirmedLabel: "Demo snapshot 14m ago"
   },
   {
     name: "Whale mode",
     description: "Stress test huge numbers and chart scaling",
     lockedBonk: 1_000_000_000,
     confirmedRewards: 410_000,
-    rewardsPerHour: 5_750
+    rewardsPerHour: 5_750,
+    lastConfirmedLabel: "Demo snapshot 14m ago"
   }
 ];
 
@@ -49,13 +55,13 @@ function buildDailyRewards(rewardsPerHour: number) {
   const base = rewardsPerHour * 24;
 
   return [
-    { day: "Mon", rewards: Math.round(base * 0.84) },
-    { day: "Tue", rewards: Math.round(base * 0.92) },
-    { day: "Wed", rewards: Math.round(base * 0.9) },
-    { day: "Thu", rewards: Math.round(base * 0.96) },
-    { day: "Fri", rewards: Math.round(base * 1) },
-    { day: "Sat", rewards: Math.round(base * 1.08) },
-    { day: "Sun", rewards: Math.round(base * 1.04) }
+    { day: "Mon", confirmed: Math.round(base * 0.84), estimated: Math.round(base * 0.88) },
+    { day: "Tue", confirmed: Math.round(base * 0.92), estimated: Math.round(base * 0.95) },
+    { day: "Wed", confirmed: Math.round(base * 0.9), estimated: Math.round(base * 0.94) },
+    { day: "Thu", confirmed: Math.round(base * 0.96), estimated: Math.round(base * 0.99) },
+    { day: "Fri", confirmed: Math.round(base), estimated: Math.round(base * 1.03) },
+    { day: "Sat", confirmed: Math.round(base * 1.08), estimated: Math.round(base * 1.11) },
+    { day: "Sun", confirmed: Math.round(base * 1.04), estimated: Math.round(base * 1.07) }
   ];
 }
 
@@ -65,12 +71,45 @@ function formatBonk(value: number) {
   }).format(value);
 }
 
-function StatCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+function formatChartTick(value: number) {
+  if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+  if (value >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
+  return `${value}`;
+}
+
+function DataBadge({ type }: { type: DataClass }) {
+  const styles = {
+    Confirmed: "border-emerald-300/30 bg-emerald-400/10 text-emerald-200",
+    Estimated: "border-orange-300/30 bg-orange-400/10 text-orange-200",
+    Projected: "border-sky-300/30 bg-sky-400/10 text-sky-200"
+  } satisfies Record<DataClass, string>;
+
+  return (
+    <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${styles[type]}`}>
+      {type}
+    </span>
+  );
+}
+
+function RewardCard({
+  type,
+  label,
+  value,
+  helper
+}: {
+  type: DataClass;
+  label: string;
+  value: string;
+  helper: string;
+}) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
-      <p className="text-sm text-zinc-400">{label}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-sm text-zinc-500">{helper}</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-zinc-400">{label}</p>
+        <DataBadge type={type} />
+      </div>
+      <p className="mt-4 text-3xl font-black tracking-tight text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-zinc-500">{helper}</p>
     </div>
   );
 }
@@ -109,26 +148,28 @@ export default function Home() {
   }, [now, rewardsPerHour, selectedProfile.confirmedRewards, snapshotStartedAt]);
 
   const dailyRewards = useMemo(() => buildDailyRewards(rewardsPerHour), [rewardsPerHour]);
-  const projectedMonth = rewardsPerHour * 24 * 30;
-  const todayEstimate = rewardsPerHour * 24;
+  const projectedDay = rewardsPerHour * 24;
+  const projectedWeek = projectedDay * 7;
+  const projectedMonth = projectedDay * 30;
   const estimatedDifference = liveEstimatedRewards - selectedProfile.confirmedRewards;
   const secondsRunning = Math.floor((now - snapshotStartedAt) / 1000);
+  const walletStatus = wallet.trim() ? "Wallet adapter not connected yet — address saved locally for the demo." : "Demo mode active. Paste a wallet later when the adapter is live.";
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#361708_0%,#09090b_40%,#030303_100%)] px-6 py-8 text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#361708_0%,#09090b_42%,#030303_100%)] px-6 py-8 text-white">
       <section className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-6 rounded-[2rem] border border-orange-300/10 bg-black/30 p-6 shadow-2xl shadow-orange-950/20 backdrop-blur md:p-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">BONK Engine</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">BonkXSol</p>
                 <p className="rounded-full border border-orange-300/20 bg-orange-400/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-orange-200">
-                  Demo mode
+                  MVP demo
                 </p>
               </div>
-              <h1 className="mt-3 text-4xl font-black tracking-tight md:text-6xl">Rewards Tracker</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300 md:text-lg">
-                A live dashboard for BONK lockers. Test the experience now with demo data before we connect the Solana adapter.
+              <h1 className="mt-3 text-4xl font-black tracking-tight md:text-6xl">BONK Rewards Command Center</h1>
+              <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-300 md:text-lg">
+                A locker dashboard that separates what is confirmed on-chain, what is estimated in real time, and what is projected forward. The interface is ready for wallet data without pretending mock data is live chain truth.
               </p>
             </div>
 
@@ -139,15 +180,42 @@ export default function Home() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-            <input
-              value={wallet}
-              onChange={(event) => setWallet(event.target.value)}
-              placeholder="Paste Solana wallet address. Demo works without it."
-              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-white outline-none ring-orange-400/40 transition placeholder:text-zinc-600 focus:ring-4"
-            />
+            <div>
+              <input
+                value={wallet}
+                onChange={(event) => setWallet(event.target.value)}
+                placeholder="Paste Solana wallet address. Demo works without it."
+                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-white outline-none ring-orange-400/40 transition placeholder:text-zinc-600 focus:ring-4"
+              />
+              <p className="mt-2 text-xs text-zinc-500">{walletStatus}</p>
+            </div>
             <button className="rounded-2xl bg-orange-400 px-6 py-4 font-bold text-black transition hover:bg-orange-300">
               Track wallet soon
             </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-5">
+              <DataBadge type="Confirmed" />
+              <h2 className="mt-4 text-xl font-black">Confirmed snapshot</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Data that should come from the wallet, lock contract, or reward transaction history once the Solana adapter is wired in.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-orange-300/20 bg-orange-400/10 p-5">
+              <DataBadge type="Estimated" />
+              <h2 className="mt-4 text-xl font-black">Live counter</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                The moving number between confirmed updates. Useful for feel, but always labeled as an estimate.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-sky-300/20 bg-sky-400/10 p-5">
+              <DataBadge type="Projected" />
+              <h2 className="mt-4 text-xl font-black">Forward math</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Daily, weekly, and monthly reward projections based on the selected reward speed, not guaranteed future rewards.
+              </p>
+            </div>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -205,18 +273,38 @@ export default function Home() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Locked BONK" value={formatBonk(selectedProfile.lockedBonk)} helper="Demo profile until lock adapter is connected" />
-            <StatCard label="Confirmed rewards" value={formatBonk(selectedProfile.confirmedRewards)} helper="Mocked confirmed snapshot" />
-            <StatCard label="Live estimate" value={formatBonk(liveEstimatedRewards)} helper={`+${formatBonk(estimatedDifference)} since snapshot`} />
-            <StatCard label="Reward speed" value={`${formatBonk(rewardsPerHour)}/hr`} helper={`${formatBonk(todayEstimate)} BONK/day`} />
+            <RewardCard
+              type="Confirmed"
+              label="Locked BONK"
+              value={formatBonk(selectedProfile.lockedBonk)}
+              helper="Demo profile until the lock adapter is connected."
+            />
+            <RewardCard
+              type="Confirmed"
+              label="Confirmed rewards"
+              value={formatBonk(selectedProfile.confirmedRewards)}
+              helper={selectedProfile.lastConfirmedLabel}
+            />
+            <RewardCard
+              type="Estimated"
+              label="Live estimate"
+              value={formatBonk(liveEstimatedRewards)}
+              helper={`+${formatBonk(estimatedDifference)} BONK since the confirmed snapshot.`}
+            />
+            <RewardCard
+              type="Projected"
+              label="Projected daily rewards"
+              value={formatBonk(projectedDay)}
+              helper={`${formatBonk(rewardsPerHour)} BONK/hour × 24 hours.`}
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
             <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-xl font-bold">Daily rewards</h2>
-                  <p className="text-sm text-zinc-500">Confirmed + estimated reward flow</p>
+                  <h2 className="text-xl font-bold">Reward flow</h2>
+                  <p className="text-sm text-zinc-500">Confirmed history with an estimated overlay.</p>
                 </div>
                 <p className="rounded-full bg-orange-400/10 px-4 py-2 text-sm font-semibold text-orange-200">Live demo</p>
               </div>
@@ -225,35 +313,41 @@ export default function Home() {
                   <AreaChart data={dailyRewards} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                     <XAxis dataKey="day" stroke="rgba(255,255,255,0.45)" />
-                    <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(value) => `${Number(value) / 1000}k`} />
-                    <Tooltip contentStyle={{ background: "#111", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px" }} />
-                    <Area type="monotone" dataKey="rewards" stroke="#fb923c" fill="#fb923c" fillOpacity={0.18} />
+                    <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(value) => formatChartTick(Number(value))} />
+                    <Tooltip
+                      contentStyle={{ background: "#111", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px" }}
+                      formatter={(value, name) => [`${formatBonk(Number(value))} BONK`, name === "confirmed" ? "Confirmed" : "Estimated"]}
+                    />
+                    <Area type="monotone" dataKey="confirmed" stroke="#34d399" fill="#34d399" fillOpacity={0.12} />
+                    <Area type="monotone" dataKey="estimated" stroke="#fb923c" fill="#fb923c" fillOpacity={0.18} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-              <h2 className="text-xl font-bold">Projection</h2>
+              <h2 className="text-xl font-bold">Projection panel</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                The product promise: make BONK locks easier to understand without pretending estimates are confirmed rewards.
+                Projections are rate math only. They should update when confirmed reward behavior changes.
               </p>
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-2xl bg-black/30 p-4">
-                  <p className="text-sm text-zinc-500">30-day projected rewards</p>
-                  <p className="mt-2 text-2xl font-black text-orange-200">{formatBonk(projectedMonth)} BONK</p>
+                  <p className="text-sm text-zinc-500">24-hour projection</p>
+                  <p className="mt-2 text-2xl font-black text-orange-200">{formatBonk(projectedDay)} BONK</p>
                 </div>
                 <div className="rounded-2xl bg-black/30 p-4">
-                  <p className="text-sm text-zinc-500">Data labels</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    Confirmed = chain. Estimated = live counter. Projected = future rate math.
-                  </p>
+                  <p className="text-sm text-zinc-500">7-day projection</p>
+                  <p className="mt-2 text-2xl font-black text-orange-200">{formatBonk(projectedWeek)} BONK</p>
+                </div>
+                <div className="rounded-2xl bg-black/30 p-4">
+                  <p className="text-sm text-zinc-500">30-day projection</p>
+                  <p className="mt-2 text-2xl font-black text-orange-200">{formatBonk(projectedMonth)} BONK</p>
                 </div>
                 <div className="rounded-2xl bg-black/30 p-4">
                   <p className="text-sm text-zinc-500">Next build target</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    Replace demo profiles with Solana wallet reads and BONK transfer history.
+                    Replace demo profiles with Solana wallet reads, BONK token accounts, and reward transaction parsing.
                   </p>
                 </div>
               </div>
