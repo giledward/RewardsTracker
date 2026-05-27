@@ -1,20 +1,35 @@
-# BONK Rewards Tracker
+# BonkXSol Rewards Command Center
 
-A user-friendly dashboard for BONK lockers.
+A professional BONK rewards dashboard for lockers who want to understand their position without confusing confirmed data with live estimates or projections.
 
-The goal is to make BONK rewards feel alive instead of static:
+The product goal is simple: make BONK rewards feel alive, trackable, and honest.
 
-- live BONK reward counter
-- reward speed estimates
-- daily reward chart
-- projected monthly rewards
-- future Solana wallet + on-chain adapter
+## MVP features
+
+- BONK locked balance demo profiles
+- confirmed reward snapshot cards
+- live estimated reward counter
+- adjustable BONK/hour reward speed
+- confirmed vs estimated reward flow chart
+- projected 24-hour, 7-day, and 30-day rewards
+- wallet input placeholder for the future Solana adapter
+- BONK mint display for product clarity
 
 ## MVP status
 
-The first version uses mock data so the interface can be built fast.
+The current version is a polished demo interface using mock data so the product shape can be tested fast.
 
-Next step: connect a wallet and read BONK token/reward activity from Solana.
+The next technical milestone is to replace demo profiles with real Solana wallet reads, BONK token accounts, and reward transaction parsing.
+
+## Product rule
+
+The app should always separate:
+
+- **Confirmed**: data read from chain, token accounts, lock contracts, or reward transaction history
+- **Estimated**: live calculation between confirmed updates
+- **Projected**: forward-looking estimate based on recent or selected reward rate
+
+This rule matters because the dashboard should feel exciting without pretending projections are guaranteed.
 
 ## Commands
 
@@ -23,10 +38,10 @@ npm install
 npm run dev
 ```
 
-## Product rule
+## Next build targets
 
-The app should always separate:
-
-- **Confirmed**: data read from chain
-- **Estimated**: live calculation between confirmed updates
-- **Projected**: forward-looking estimate based on recent reward rate
+1. Add wallet adapter connection.
+2. Read BONK token account balances.
+3. Identify locked BONK and reward-related activity.
+4. Replace demo snapshots with confirmed wallet data.
+5. Store snapshots for historical charts.
